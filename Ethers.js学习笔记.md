@@ -1489,6 +1489,7 @@ console.log("是否相等：", oneGwei == 1000000000n)
 
 
 ### 格式化：小单位转大单位
+
  例如将wei转换为ether：`formatUnits(变量, 单位)`：单位填位数（数字）或指定的单位（字符串）
 
 
@@ -1699,3 +1700,554 @@ const contractDAI = new ethers.Contract(addressDAI, abiDAI, provider)
 
 
 
+# 12 识别ERC721合约
+
+
+
+## ERC721
+
+简单来说就是以太坊上NFT的标准
+
+
+
+## ERC165
+
+ERC-165是以太坊上的一种接口标准，用于合约之间的接口兼容性和功能检查。它定义了一种标准的接口查询机制，允许合约在运行时确定其他合约是否实现了特定的接口。
+
+ERC-165标准规定了两个主要的函数：`supportsInterface`和`interfaceId`。
+
+1. `supportsInterface(bytes4 interfaceId) external view returns (bool)`：该函数用于检查合约是否支持特定的接口。它接收一个4字节的接口ID作为参数，并返回一个布尔值，指示合约是否支持该接口。如果合约支持给定的接口，函数返回`true`，否则返回`false`。
+
+2. `interfaceId()`：该函数返回合约实现的接口ID。接口ID是一个4字节的哈希值，用于唯一标识一个接口。合约可以通过重写`interfaceId()`函数来指定自己所实现的接口ID。
+
+ERC-165标准的主要目的是提供一种机制，使合约能够在运行时检查其他合约是否实现了特定的接口。这样一来，合约之间就可以进行接口兼容性检查，从而更好地进行交互和集成。通过使用`supportsInterface`函数，合约可以确定其他合约是否具有所需的功能，并相应地调整其行为。
+
+通过使用ERC-165标准，合约可以实现更灵活和可扩展的交互模式，以及更好地支持模块化和可插拔的设计。它提供了一种标准化的方式来定义和查询接口，从而促进了智能合约之间的互操作性和可组合性。
+
+
+
+
+
+## 识别ERC721
+
+
+
+1.创建智能合约实例
+
+```js
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+//合约abi
+const abiERC721 =[
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function supportsInterface(bytes4) public view returns(bool)",
+]
+// ERC721的合约地址，这里用的BAYC
+const addressBAYC = "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+
+//创建智能合约实例
+const contractERC721 = new ethers.Contract(addressBAYC,abiERC721,provider);
+```
+
+
+
+2.读取ERC721合约的链上信息
+
+```js
+const nameERC721 = await contractERC721.name()
+const symbolERC721 = await contractERC721.symbol()
+console.log("\n1. 读取ERC721合约信息")
+console.log(`合约地址: ${addressBAYC}`)
+console.log(`名称: ${nameERC721}`)
+console.log(`代号: ${symbolERC721}`)
+```
+
+
+
+3.利用ERC165的supportsInterface，确定合约是否为ERC721标准
+
+
+
+`ERC721`合约中会实现`IERC165`接口合约的`supportsInterface`函数，并且当查询`0x80ac58cd`（`ERC721`接口id）时返回`true`。
+
+
+
+可以在对应页面，用`INTERFACE`来查询接口id
+
+![image-20230704185732605](https://codermartinn.oss-cn-guangzhou.aliyuncs.com/img/image-20230704185732605.png)
+
+[Bored Ape Yacht Club: BAYC Token | Address 0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d | Etherscan](https://etherscan.io/address/0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d#code)
+
+`bytes4 private constant _INTERFACE_ID_ERC721 = 0x80ac58cd;`
+
+```js
+const isERC721 = await contractERC721.supportsInterface(selectorERC721);
+console.log("\n2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准")
+console.log(`合约是否为ERC721标准: ${isERC721}`)
+```
+
+
+
+
+
+完整代码：
+
+```js
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+//合约abi
+const abiERC721 =[
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function supportsInterface(bytes4) public view returns(bool)",
+]
+// ERC721的合约地址，这里用的BAYC
+const addressBAYC = "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+
+//创建智能合约实例
+const contractERC721 = new ethers.Contract(addressBAYC,abiERC721,provider);
+
+
+// ERC721接口的ERC165 identifier
+const selectorERC721 = "0x80ac58cd"
+
+const main = async ()=>{
+    try{
+        // 1. 读取ERC721合约的链上信息
+        const nameERC721 = await contractERC721.name()
+        const symbolERC721 = await contractERC721.symbol()
+        console.log("\n1. 读取ERC721合约信息")
+        console.log(`合约地址: ${addressBAYC}`)
+        console.log(`名称: ${nameERC721}`)
+        console.log(`代号: ${symbolERC721}`)
+
+        // 2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准
+        const isERC721 = await contractERC721.supportsInterface(selectorERC721);
+        console.log("\n2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准")
+        console.log(`合约是否为ERC721标准: ${isERC721}`)
+
+    }catch (e) {
+        // 如果不是ERC721，则会报错
+        console.log(e);
+    }
+}
+
+main();
+```
+
+
+
+运行结果：
+
+```js
+1. 读取ERC721合约信息
+合约地址: 0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d
+名称: BoredApeYachtClub
+代号: BAYC
+
+2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准
+合约是否为ERC721标准: true
+```
+
+
+
+
+
+## 总结
+
+只要实现了ERC165的接口，都能用上面的方法查是否存在某个接口。
+
+但是，ERC20没实现ERC165的接口，因此不行。
+
+
+
+
+
+# 13 编码calldata
+
+介绍`ethers.js`中的接口类，并利用它编码`calldata`。
+
+
+
+## 合约调用数据
+
+合约调用数据是一个字节数组，用于指定要调用合约的特定函数及其参数。它的结构如下：
+
+```
+<函数选择器><参数1><参数2>...
+```
+
+- 函数选择器（Function Selector）是一个用于标识函数的唯一标识符。它是函数名称和参数类型的哈希值的前四个字节。通过函数选择器，以太坊可以识别出要调用的是合约中的哪个函数。
+
+- 参数是函数调用的输入数据。每个参数都按照其类型进行编码，并按顺序排列在函数选择器后面。
+
+通过将函数选择器和参数编码为字节数组，我们可以创建合约调用数据，以便在以太坊上执行合约的特定函数。
+
+在上述代码中，`contractWETH.interface.encodeFunctionData` 方法用于生成合约调用数据。它接收函数名称和参数，并将它们编码为字节数组，以便发送给合约进行调用。生成的合约调用数据将包含要调用的函数选择器和参数编码。
+
+
+
+
+
+## 接口类 Interface
+
+在 ethers.js 中，接口类（Interface class）是一个用于处理智能合约的 ABI（Application Binary Interface）的工具。它允许你根据智能合约的 ABI 定义来解析和编码交易数据、调用函数以及解析事件日志。
+
+接口类提供了以下主要功能：
+
+1. 解析函数调用：接口类可以根据智能合约的 ABI 定义解析函数调用数据。通过提供函数名称和参数值，你可以使用接口类的方法生成正确的函数调用数据。这对于构建和签署交易以及调用智能合约函数非常有用。
+
+2. 解析事件日志：接口类可以解析智能合约的事件日志数据。你可以通过提供事件名称和事件日志数据，使用接口类的方法解析事件的参数值。这对于监听和处理智能合约的事件非常有用。
+
+3. 编码和解码数据：接口类可以根据指定的类型定义编码和解码数据。你可以使用接口类的方法将数据从 JavaScript 对象编码为字节数组，或者将字节数组解码为 JavaScript 对象。这在处理复杂数据类型时非常有用，如结构体、动态数组等。
+
+使用接口类需要提供智能合约的 ABI 定义，它描述了智能合约的函数、事件以及它们的参数类型和顺序。通过加载合约的 ABI 定义并创建接口类的实例，你可以轻松地与智能合约进行交互。
+
+以下是 ethers.js 接口类的基本用法示例：
+
+```javascript
+const { ethers } = require('ethers');
+
+// 定义智能合约的 ABI
+const abi = [
+  // 函数定义...
+  // 事件定义...
+];
+
+// 创建接口类实例
+const contractInterface = new ethers.utils.Interface(abi);
+
+// 解析函数调用
+const functionName = 'transfer';
+const functionArgs = ['0x0123456789abcdef', 100];
+const functionData = contractInterface.encodeFunctionData(functionName, functionArgs);
+console.log('函数调用数据:', functionData);
+
+// 解析事件日志
+const eventName = 'Transfer';
+const eventData = {
+  address: '0xabcdef0123456789',
+  topics: ['0x0123456789abcdef', '0xabcdef0123456789'],
+  data: '0x0123456789abcdef',
+};
+const eventParsedData = contractInterface.parseLog(eventData);
+console.log('事件解析结果:', eventParsedData);
+
+// 编码和解码数据
+const dataType = 'uint256';
+const value = 100;
+const encodedData = contractInterface.encode([dataType], [value]);
+console.log('编码后的数据:', encodedData);
+const decodedData = contractInterface.decode([dataType], encodedData);
+console.log('解码后的数据:', decodedData);
+```
+
+请注意，上述示例中的 `abi` 变量是一个包含智能合约的 ABI 定义的数组。你需要替换为你所使用的智能合约的实际 ABI。
+
+总而言之，ethers.js 的接口类提供了
+
+便捷的方法来处理智能合约的 ABI，包括函数调用、事件解析和数据编码/解码等操作。它简化了与智能合约的交互过程，并提供了一致性和类型安全性。
+
+
+
+
+
+使用接口类的好处包括：
+
+1. 类型安全：通过使用接口类，可以在编译时进行类型检查，确保函数调用的正确性。接口类提供了对合约函数的类型定义，可以避免在调用合约函数时传递错误的参数或返回值类型。
+2. 代码提示：接口类可以为合约函数提供代码提示和自动补全功能。在开发环境中，通过接口类可以获得函数名称、参数和返回值的提示，提高开发效率。
+3. ABI 解析：接口类可以解析合约的 ABI，根据函数名称和参数生成函数调用数据。这样，开发人员无需手动编写和处理函数调用数据，减少了出错的可能性。
+4. 可读性：使用接口类可以使代码更易读和易理解。通过使用接口类中的函数名称，开发人员可以更直观地了解代码的意图和功能。
+
+
+
+
+
+
+
+## 例子：与测试网WETH合约交互
+
+![image-20230704224919523](https://codermartinn.oss-cn-guangzhou.aliyuncs.com/img/image-20230704224919523.png)
+
+
+
+```js
+// Interface 接口类
+// 利用abi生成
+// const interface = ethers.Interface(abi)
+// 直接从contract中获取
+// const interface2 = contract.interface
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// WETH的ABI
+const abiWETH = [
+    "function balanceOf(address) public view returns(uint)",
+    "function deposit() public payable",
+];
+// WETH合约地址（Goerli测试网）
+const addressWETH = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6'
+
+// 声明WETH合约
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, wallet)
+
+const main = async () => {
+
+    const address = await wallet.getAddress()
+    // 1. 读取WETH合约的链上信息（WETH abi）
+    console.log("\n1. 读取WETH余额")
+    // 编码calldata
+    const param1 = contractWETH.interface.encodeFunctionData(
+        "balanceOf",
+        [address]
+      );
+    console.log(`编码结果： ${param1}`)
+    // 创建交易
+    const tx1 = {
+        to: addressWETH,
+        data: param1
+    }
+    // 发起交易，可读操作（view/pure）可以用 provider.call(tx)
+    const balanceWETH = await provider.call(tx1)
+    console.log(`存款前WETH持仓: ${ethers.formatEther(balanceWETH)}\n`)
+
+    //读取钱包内ETH余额
+    const balanceETH = await provider.getBalance(wallet)
+    // 如果钱包ETH足够
+    if(ethers.formatEther(balanceETH) > 0.0015){
+
+        // 2. 调用desposit()函数，将0.001 ETH转为WETH
+        console.log("\n2. 调用desposit()函数，存入0.001 ETH")
+        // 编码calldata
+        const param2 = contractWETH.interface.encodeFunctionData(
+            "deposit"          
+            );
+        console.log(`编码结果： ${param2}`)
+        // 创建交易
+        const tx2 = {
+            to: addressWETH,
+            data: param2,
+            value: ethers.parseEther("0.001")}
+        // 发起交易，写入操作需要 wallet.sendTransaction(tx)
+        const receipt1 = await wallet.sendTransaction(tx2)
+        // 等待交易上链
+        await receipt1.wait()
+        console.log(`交易详情：`)
+        console.log(receipt1)
+        const balanceWETH_deposit = await contractWETH.balanceOf(address)
+        console.log(`存款后WETH持仓: ${ethers.formatEther(balanceWETH_deposit)}\n`)
+
+    }else{
+        // 如果ETH不足
+        console.log("ETH不足，去水龙头领一些Goerli ETH")
+        console.log("1. chainlink水龙头: https://faucets.chain.link/goerli")
+        console.log("2. paradigm水龙头: https://faucet.paradigm.xyz/")
+    }
+}
+
+main()
+```
+
+
+
+上面的代码使用了 ethers.js 中的接口类 `ethers.Interface`。接口类是一个非常有用的工具，它能够根据合约的 ABI（Application Binary Interface）定义生成函数的调用数据，简化了与合约的交互过程。
+
+在上面的代码中，首先声明了一个 `abiWETH` 变量，它包含了 WETH 合约的 ABI，用于描述合约的函数和事件。接下来创建了一个合约对象 `contractWETH`，通过提供合约地址、ABI 和钱包对象，实例化了一个具体的合约实例。
+
+在代码的执行过程中，需要调用合约的函数来与合约进行交互。这时，通过使用接口类的 `encodeFunctionData` 方法，可以根据函数名称和参数生成合约函数的调用数据。例如，在代码中的以下部分：
+
+```js
+const param1 = contractWETH.interface.encodeFunctionData("balanceOf", [address]);
+```
+
+使用接口类的 `encodeFunctionData` 方法，传入函数名 `"balanceOf"` 和对应的参数 `[address]`，生成了调用合约函数 `"balanceOf"` 的数据。这样就不需要手动编写调用数据，避免了繁琐的编码过程和容易出错的问题。
+
+生成了函数的调用数据之后，可以将该数据作为交易的数据字段（`data`）发送给以太坊网络进行合约函数的调用。例如，在代码中的以下部分：
+
+```js
+const tx1 = {
+    to: addressWETH,
+    data: param1
+}
+const balanceWETH = await provider.call(tx1);
+```
+
+创建了一个交易对象 `tx1`，指定合约地址和生成的调用数据作为数据字段，然后通过 `provider.call()` 方法发起了一个只读的调用操作。这样就能够读取合约的状态或执行只读函数，而无需发送实际的交易。
+
+总而言之，接口类在上面的代码中的作用是根据合约的 ABI 自动生成函数的调用数据，使得与合约的交互过程更加简单、高效和可靠。通过使用接口类，开发者可以避免手动编写调用数据带来的错误和繁琐，并提高代码的可读性和可维护性。
+
+
+
+
+
+首先，在以下代码中，我们使用接口类的 `encodeFunctionData` 方法生成了调用合约函数 `"deposit"` 的调用数据：
+
+```js
+const param2 = contractWETH.interface.encodeFunctionData("deposit");
+```
+
+这里没有传递任何参数，因为 `deposit` 函数不需要额外的输入。然后，我们将生成的调用数据作为交易的数据字段（`data`）一并与交易的接收地址（`to`）和发送的 ETH 数量（`value`）一起组成一个交易对象 `tx2`：
+
+```js
+const tx2 = {
+    to: addressWETH,
+    data: param2,
+    value: ethers.parseEther("0.001")
+};
+```
+
+我们将交易发送给钱包对象的 `sendTransaction` 方法，并等待交易被打包和上链：
+
+```js
+const receipt1 = await wallet.sendTransaction(tx2);
+await receipt1.wait();
+```
+
+接收到的交易回执信息被存储在 `receipt1` 变量中，我们打印交易详情：
+
+```js
+console.log(`交易详情：`);
+console.log(receipt1);
+```
+
+最后，我们通过调用 `balanceOf` 函数来获取存款后的 WETH 余额：
+
+```js
+const balanceWETH_deposit = await contractWETH.balanceOf(address);
+```
+
+这里的 `balanceOf` 函数是用于查询 WETH 合约中指定地址的余额。我们使用 `ethers.formatEther` 方法将余额从原始的 `BigNumber` 格式转换为以太单位的字符串，并打印出来：
+
+```js
+console.log(`存款后WETH持仓: ${ethers.formatEther(balanceWETH_deposit)}\n`);
+```
+
+总结起来，上述代码段使用接口类的 `encodeFunctionData` 方法生成合约函数 `"deposit"` 的调用数据，并将其与其他交易参数一起组成交易对象。然后，通过钱包对象的 `sendTransaction` 方法发送交易并等待交易被打包和上链。最后，我们查询存款后的 WETH 余额并将其打印出来。
+
+
+
+## 总结
+
+先搞清楚接口类`contractWETH.interface.encodeFunctionData`生成的合约调用数据是长什么样。
+
+使用接口类的好处包括：
+
+1. 类型安全：通过使用接口类，可以在编译时进行类型检查，确保函数调用的正确性。接口类提供了对合约函数的类型定义，可以避免在调用合约函数时传递错误的参数或返回值类型。
+2. 代码提示：接口类可以为合约函数提供代码提示和自动补全功能。在开发环境中，通过接口类可以获得函数名称、参数和返回值的提示，提高开发效率。
+3. ABI 解析：接口类可以解析合约的 ABI，根据函数名称和参数生成函数调用数据。这样，开发人员无需手动编写和处理函数调用数据，减少了出错的可能性。
+4. 可读性：使用接口类可以使代码更易读和易理解。通过使用接口类中的函数名称，开发人员可以更直观地了解代码的意图和功能。
+
+
+
+
+
+# 14 批量生成钱包
+
+介绍HD钱包，并写一个批量生成钱包的脚本。
+
+
+
+## HD钱包
+
+HD钱包（Hierarchical Deterministic Wallet，多层确定性钱包）是一种数字钱包 ，通常用于存储比特币和以太坊等加密货币持有者的数字密钥。通过它，用户可以从一个随机种子创建一系列密钥对，更加便利、安全、隐私。要理解HD钱包，我们需要简单了解比特币的BIP32，BIP44，和BIP39。
+
+
+
+BIP32、BIP44和BIP39是比特币中的三个重要的钱包标准，它们共同为比特币钱包的派生、备份和恢复提供了标准化的方法。下面是对它们的简单介绍：
+
+1. BIP32（确定性钱包）：BIP32定义了一种确定性钱包的标准，它允许从单个种子派生出一系列的私钥和公钥，而无需为每个私钥生成新的备份。这种确定性钱包的好处在于可以使用一个简单的助记词（seed phrase）来备份和恢复整个钱包，而不必处理多个私钥。
+
+2. BIP39（助记词）：BIP39定义了一种用于生成钱包助记词的标准。助记词是一组由单词组成的短语，可以用于生成加密钱包的种子。这种助记词具有易记和易于备份的特点，可以用作生成确定性钱包的种子。BIP39规定了助记词的长度以及如何计算助记词的校验和。
+
+3. BIP44（多币种钱包）：BIP44定义了一种多币种钱包的标准，它可以从助记词和确定性钱包中派生出多个币种的密钥对。BIP44使用了一种层次化的钱包结构，其中币种、账户、外部/内部链以及地址索引都有固定的规则。这样可以方便地管理和备份多个加密货币的钱包，并保持钱包之间的层次结构一致性。
+
+总结起来，BIP32提供了确定性钱包的标准，允许从单个种子派生多个密钥对；BIP39定义了生成助记词的规范，用于备份和恢复钱包；而BIP44建立在BIP32和BIP39的基础上，为多币种钱包提供了派生规则和层次结构，使得管理多个加密货币的钱包更加方便和一致。这些标准的使用使得比特币钱包的创建、备份和恢复变得更加标准化和可靠。
+
+
+
+`BIP44`为`BIP32`的衍生路径提供了一套通用规范，适配比特币、以太坊等多链。这一套规范包含六级，每级之间用"/"分割：
+
+```text
+m / purpose' / coin_type' / account' / change / address_index
+```
+
+其中：
+
+- m: 固定为"m"
+- purpose：固定为"44"
+- coin_type：代币类型，比特币主网为0，比特币测试网为1，以太坊主网为60
+- account：账户索引，从0开始。
+- change：是否为外部链，0为外部链，1为内部链，一般填0.
+- address_index：地址索引，从0开始，想生成新地址就把这里改为1，2，3。
+
+举个例子，以太坊的默认衍生路径为`"m/44'/60'/0'/0/0"`。
+
+
+
+## 批量生成钱包
+
+```js
+import { ethers } from "ethers";
+
+// 1. 创建HD钱包
+console.log("\n1. 创建HD钱包")
+// 生成随机助记词
+const mnemonic = ethers.Mnemonic.entropyToPhrase(ethers.randomBytes(32))
+// 创建HD钱包
+const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic)
+console.log(hdNode);
+
+// 2. 通过HD钱包派生20个钱包
+console.log("\n2. 通过HD钱包派生20个钱包")
+const numWallet = 20
+// 派生路径：m / purpose' / coin_type' / account' / change / address_index
+// 我们只需要切换最后一位address_index，就可以从hdNode派生出新钱包
+let basePath = "m/44'/60'/0'/0";
+let wallets = [];
+for (let i = 0; i < numWallet; i++) {
+    let hdNodeNew = hdNode.derivePath(basePath + "/" + i);
+    let walletNew = new ethers.Wallet(hdNodeNew.privateKey);
+    console.log(`第${i+1}个钱包地址： ${walletNew.address}`)
+    wallets.push(walletNew);
+}
+
+// 3. 保存钱包（加密json）
+console.log("\n3. 保存钱包（加密json）")
+const wallet = ethers.Wallet.fromPhrase(mnemonic)
+console.log("通过助记词创建钱包：")
+console.log(wallet)
+// 加密json用的密码，可以更改成别的
+const pwd = "password"
+const json = await wallet.encrypt(pwd)
+console.log("钱包的加密json：")
+console.log(json)
+
+// 4. 从加密json读取钱包
+const wallet2 = await ethers.Wallet.fromEncryptedJson(json, pwd);
+console.log("\n4. 从加密json读取钱包：")
+console.log(wallet2)
+```
+
+
+
+
+
+## 总结
+
+介绍了HD钱包（BIP32，BIP44，BIP39），并利用它在`ethers.js`批量生成了20个钱包。
